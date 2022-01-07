@@ -1,19 +1,19 @@
 import pygame
-import random
+
 from math import sqrt
 clock = pygame.time.Clock()
 pygame.init()
 
-WIDTH = 600
-HEIGHT = 600
+WIDTH = 1000
+HEIGHT = 1000
 SOFTNESS = 0.04
 
-GRAVITY = 0.0001
+GRAVITY = 0.9
 # INCLINE - наклон получаемый с гироскопа, здесь относительный в долях единицы
 # от -1: наклон правой/нижней стороной вверх до +1 наклон левой/верхней стороной вверх
 # если 0 то горизонтально поверхности земли
 INCLINE_X = 0
-INCLINE_Y = 0.1
+INCLINE_Y = 0.001
 COLOUR = (180, 180, 180)
 SIZE = 10
 
@@ -27,7 +27,7 @@ class Ball:
 
     def move(self):
         self.position = self.get_next_position()
-        self.t += 1
+        self.t += 0.001
 
     def show(self, screen):
         pygame.draw.circle(
@@ -39,25 +39,31 @@ class Ball:
 
     def get_increment(self):
         dx, dy = self.direction
-        dx += (GRAVITY * INCLINE_X) * self.t ** 2 / 2
-        dy += (GRAVITY * INCLINE_Y) * self.t ** 2 / 2
+        #dx = GRAVITY * self.t
+        dy = dy + GRAVITY * self.t
         return (dx, dy)
 
     def get_next_position(self):
         x, y = self.position
         dx, dy = self.get_increment()
-        return (int(x + dx), int(y + dy))
+        print(dx, dy)
+        return (x + dx, y + dy)
 
     def collision(self):
         x, y = self.get_next_position()
         if SIZE > x or x > WIDTH - SIZE:
             dx, dy = self.get_increment()
-            self.direction = (-dx, dy)
+            self.direction = (0, 0)
+            # self.direction = (-dx, dy)
             self.t = 0
+            return True
         if SIZE > y or y > HEIGHT - SIZE:
             dx, dy = self.get_increment()
-            self.direction = (dx, -dy)
+            self.direction = (0, 0)
+            # self.direction = (dx, -dy)
             self.t = 0
+            return True
+        return False
 
 
 
@@ -65,13 +71,13 @@ class Ball:
 
 
 x = WIDTH / 2 # random.randint(SIZE, WIDTH - SIZE)
-y = HEIGHT / 2 # random.randint(SIZE, HEIGHT - SIZE)
+y = HEIGHT - SIZE # random.randint(SIZE, HEIGHT - SIZE)
 dx2 = 0 # random.random()
-dy2 = 1 - dx2
+dy2 = 0
 
 ball = Ball(
     (x, y),
-    (sqrt(dx2), sqrt(dy2))
+    (0, -0.6)
 )
 
 
@@ -103,7 +109,6 @@ while not GAME_END:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 pause = not pause
-                print(pause)
 
     pressed = pygame.key.get_pressed()
 
@@ -111,10 +116,12 @@ while not GAME_END:
         for command in (commands_move[key] for key in commands_move if pressed[key]):
             update_inclane(command)
             print(command)
-        ball.collision()
+        if ball.collision():
+            pause = not pause
+            print (ball.t, ball.direction)
         ball.move()
-        ball.show(game_screen)
 
+    ball.show(game_screen)
     pygame.display.update()
 
 
