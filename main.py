@@ -1,6 +1,7 @@
+# скорость это расстояние за единицу времени,
+# для упрощения скорость это просто изменение расстояния за итерацию,
+# или просто dx, или dy
 import pygame
-
-from math import sqrt
 clock = pygame.time.Clock()
 pygame.init()
 
@@ -9,15 +10,17 @@ HEIGHT = 1000
 SOFTNESS = 0.5
 
 GRAVITY = 0.9
-# INCLINE - наклон получаемый с гироскопа, здесь относительный в долях единицы
-# от -1: наклон правой/нижней стороной вверх до +1 наклон левой/верхней стороной вверх
-# если 0 то горизонтально поверхности земли
-INCLINE_X = 0
-INCLINE_Y = 0.5
-COLOUR = (180, 180, 180)
+COLOUR = (255, 18, 255)
 SIZE = 10
 
-# инициализация одной клетки в случайном месте поля
+# incline - наклон, который задумано получать с гироскопа,
+# здесь относительный, в долях единицы
+# если 0 то горизонтально поверхности земли
+# если 1 то поверхность наклонена на 90 градусов etc...
+incline = {
+    'x': 0,
+    'y': 1,
+}
 
 class Ball:
     def __init__(self, position, direction):
@@ -25,8 +28,9 @@ class Ball:
         self.direction = direction
         self.t = 0
 
-    def move(self, inclane):
-        self.position = self.get_next_position(inclane)
+    def move(self, incline):
+        self.position = self.get_next_position(incline)
+        # за каждую итерацию происходит увеличение внутреннего времени тела на 0.001
         self.t += 0.001
 
     def show(self, screen):
@@ -43,15 +47,18 @@ class Ball:
         dy = dy + GRAVITY * self.t
         return (dx, dy)
 
-    def get_next_position(self, inclane):
+    def get_next_position(self, incline):
         x, y = self.position
         dx, dy = self.get_increment()
-        dy *= inclane['y']
-        dx *= inclane['x']
+
+        # нормирование скоростей, в зависимости от угла наклона поверхности
+        dy *= incline['y']
+        dx *= incline['x']
         return (x + dx, y + dy)
 
-    def collision(self, inclane):
-        x, y = self.get_next_position(inclane)
+    def collision(self, incline):
+        # todo сделать тоже самое с ударением шариков друг об друга
+        x, y = self.get_next_position(incline)
         if SIZE > x or x > WIDTH - SIZE:
             dx, dy = self.get_increment()
             self.direction = (-dx * SOFTNESS, dy)
@@ -64,20 +71,9 @@ class Ball:
             return True
         return False
 
-
-
-
-
-
-x = WIDTH / 2 # random.randint(SIZE, WIDTH - SIZE)
-y = HEIGHT / 2 # random.randint(SIZE, HEIGHT - SIZE)
-dx2 = 0 # random.random()
-dy2 = 0
-
-ball = Ball(
-    (x, y),
-    (0, 0)
-)
+start_position = (WIDTH/2, HEIGHT/2)
+start_direction = (0, 0)
+ball = Ball(start_position, start_direction)
 
 
 game_screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -86,7 +82,8 @@ pygame.display.set_caption("pixel physics")
 pause = True
 GAME_END = False
 
-commands_move = {
+# симуляция наклона поверхности с помощь. кнопок вверх, вниз, влево, вправо
+commands_incline = {
     pygame.K_UP: 'UP',
     pygame.K_DOWN: 'DOWN',
     pygame.K_LEFT: 'LEFT',
@@ -94,12 +91,16 @@ commands_move = {
 }
 
 def update_inclane(command, inclane):
-    pass
+    if command == 'UP' and inclane['y'] < 1:
+        inclane['y'] += 0.001
+    elif command == 'DOWN' and inclane['y'] > -1:
+        inclane['y'] -= 0.001
+    if command == 'LEFT' and inclane['x'] < 1:
+        inclane['x'] += 0.001
+    elif command == 'RIGHT' and inclane['x'] > -1:
+        inclane['x'] -= 0.001
+    print(inclane)
 
-inclane = {
-    'x': 0,
-    'y': 1,
-}
 
 while not GAME_END:
     game_screen.fill((0,0,0))
@@ -111,23 +112,13 @@ while not GAME_END:
             if event.key == pygame.K_SPACE:
                 pause = not pause
 
-    pressed = pygame.key.get_pressed()
-
     if not pause:
-        for command in (commands_move[key] for key in commands_move if pressed[key]):
-            if command == 'UP' and inclane['y'] < 1:
-                inclane['y'] += 0.001
-            elif command == 'DOWN' and inclane['y'] > -1:
-                inclane['y'] -= 0.001
-            if command == 'LEFT' and inclane['x'] < 1:
-                inclane['x'] += 0.001
-            elif command == 'RIGHT' and inclane['x'] > -1:
-                inclane['x'] -= 0.001
-            print(inclane)
+        pressed = pygame.key.get_pressed()
+        for command in (commands_incline[key] for key in commands_incline if pressed[key]):
+            update_inclane(command, incline)
 
-        ball.collision(inclane)
-
-        ball.move(inclane)
+        ball.collision(incline)
+        ball.move(incline)
 
     ball.show(game_screen)
     pygame.display.update()
