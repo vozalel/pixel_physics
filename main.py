@@ -1,16 +1,19 @@
 # скорость это расстояние за единицу времени,
 # для упрощения скорость это просто изменение расстояния за итерацию,
 # или просто dx, или dy
+import random
+from itertools import combinations
 import pygame
 clock = pygame.time.Clock()
 pygame.init()
 
 WIDTH = 1000
 HEIGHT = 1000
-SOFTNESS = 0.5
+MIN_SOFTNESS = 0.2
+MAX_SOFTNESS = 0.8
 
 GRAVITY = 0.9
-COLOUR = (255, 18, 255)
+COLOUR = (20, 20, 20)
 SIZE = 10
 
 # incline - наклон, который задумано получать с гироскопа,
@@ -19,7 +22,7 @@ SIZE = 10
 # если 1 то поверхность наклонена на 90 градусов etc...
 incline = {
     'x': 0,
-    'y': 1,
+    'y': 0.1,
 }
 
 class Ball:
@@ -27,6 +30,7 @@ class Ball:
         self.position = position
         self.direction = direction
         self.t = 0
+        self.softness = random.uniform(MIN_SOFTNESS, MAX_SOFTNESS)
 
     def move(self, incline):
         self.position = self.get_next_position(incline)
@@ -47,13 +51,16 @@ class Ball:
         dy = dy + GRAVITY * self.t
         return (dx, dy)
 
-    def get_next_position(self, incline):
+    def get_next_position(self, incline, scale=1):
+        # масштабирование scale используется для экстраполяции значений
+        # (например необходимо при отрисовке направлений во время паузы)
         x, y = self.position
         dx, dy = self.get_increment()
 
         # нормирование скоростей, в зависимости от угла наклона поверхности
-        dy *= incline['y']
-        dx *= incline['x']
+        dy *= incline['y'] * scale
+        dx *= incline['x'] * scale
+
         return (x + dx, y + dy)
 
     def collision(self, incline):
@@ -61,19 +68,15 @@ class Ball:
         x, y = self.get_next_position(incline)
         if SIZE > x or x > WIDTH - SIZE:
             dx, dy = self.get_increment()
-            self.direction = (-dx * SOFTNESS, dy)
+            self.direction = (-dx * self.softness, dy)
             self.t = 0
             return True
         if SIZE > y or y > HEIGHT - SIZE:
             dx, dy = self.get_increment()
-            self.direction = (dx, -dy * SOFTNESS)
+            self.direction = (dx, -dy * self.softness)
             self.t = 0
             return True
         return False
-
-start_position = (WIDTH/2, HEIGHT/2)
-start_direction = (0, 0)
-ball = Ball(start_position, start_direction)
 
 
 game_screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -90,16 +93,26 @@ commands_incline = {
     pygame.K_RIGHT: 'RIGHT'
 }
 
-def update_inclane(command, inclane):
-    if command == 'UP' and inclane['y'] < 1:
-        inclane['y'] += 0.001
-    elif command == 'DOWN' and inclane['y'] > -1:
-        inclane['y'] -= 0.001
-    if command == 'LEFT' and inclane['x'] < 1:
-        inclane['x'] += 0.001
-    elif command == 'RIGHT' and inclane['x'] > -1:
-        inclane['x'] -= 0.001
-    print(inclane)
+def update_inclane(command, incline):
+    if command == 'UP' and incline['y'] < 1:
+        incline['y'] += 0.001
+    elif command == 'DOWN' and incline['y'] > -1:
+        incline['y'] -= 0.001
+    if command == 'LEFT' and incline['x'] < 1:
+        incline['x'] += 0.001
+    elif command == 'RIGHT' and incline['x'] > -1:
+        incline['x'] -= 0.001
+    # print(incline)
+
+
+balls = []
+balls_combinations = []
+
+def correct_collision(balls_combinations):
+    for ball, other_ball in balls_combinations:
+        # 1. если уже произошло слипание - разнести шарики в разные стороны
+        # 2. если на следующем ходу будет наложение - сменить траекторию
+        pass
 
 
 while not GAME_END:
@@ -112,15 +125,31 @@ while not GAME_END:
             if event.key == pygame.K_SPACE:
                 pause = not pause
 
+        if event.type == pygame.MOUSEBUTTONUP:
+            pos = pygame.mouse.get_pos()
+            balls.append(Ball(pos, (0, 0)))
+            balls_combinations = list(combinations(balls, 2))
+
     if not pause:
         pressed = pygame.key.get_pressed()
         for command in (commands_incline[key] for key in commands_incline if pressed[key]):
             update_inclane(command, incline)
 
-        ball.collision(incline)
-        ball.move(incline)
+        correct_collision(balls_combinations)
+        for ball in balls:
+            ball.collision(incline)
+            ball.move(incline)
+            ball.show(game_screen)
+    else:
+        for ball in balls:
+            ball.show(game_screen)
+            print(ball.get_next_position(incline))
+            pygame.draw.aaline(game_screen, (0, 255, 255),
+                               ball.position,
+                               ball.get_next_position(incline, 50))
 
-    ball.show(game_screen)
+
+
     pygame.display.update()
 
 
