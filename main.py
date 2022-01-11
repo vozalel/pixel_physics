@@ -24,7 +24,16 @@ INCLINE = {
     'x': 0,
     'y': 0.1,
 }
+PAUSE = True
+GAME_END = False
 
+# симуляция наклона поверхности с помощь. кнопок вверх, вниз, влево, вправо
+COMMANDS_INCLINE = {
+    pygame.K_UP: 'UP',
+    pygame.K_DOWN: 'DOWN',
+    pygame.K_LEFT: 'LEFT',
+    pygame.K_RIGHT: 'RIGHT'
+}
 
 class Ball:
     def __init__(self, position, direction):
@@ -83,17 +92,6 @@ class Ball:
 game_screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("pixel physics")
 
-PAUSE = True
-GAME_END = False
-
-# симуляция наклона поверхности с помощь. кнопок вверх, вниз, влево, вправо
-commands_incline = {
-    pygame.K_UP: 'UP',
-    pygame.K_DOWN: 'DOWN',
-    pygame.K_LEFT: 'LEFT',
-    pygame.K_RIGHT: 'RIGHT'
-}
-
 
 def update_incline(command):
     if command == 'UP' and INCLINE['y'] < 1:
@@ -134,7 +132,8 @@ while not GAME_END:
 
     if not PAUSE:
         pressed = pygame.key.get_pressed()
-        for command in (commands_incline[key] for key in commands_incline if pressed[key]):
+
+        for command in (COMMANDS_INCLINE[key] for key in COMMANDS_INCLINE if pressed[key]):
             update_incline(command)
 
         correct_collision(balls_combinations)
